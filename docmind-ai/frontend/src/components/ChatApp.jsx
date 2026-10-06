@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { FiUpload, FiMessageSquare, FiRotateCcw } from 'react-icons/fi';
-import { motion } from 'framer-motion';
-import { FaRegFileAlt, FaFilePdf, FaFileWord, FaFileAlt } from 'react-icons/fa';
+import { Settings, Server, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FaRegFileAlt } from 'react-icons/fa';
+import ApiSettingsModal from './ApiSettingsModal';
+import { getApiBaseUrl, isProductionCloud, getStoredApiUrl } from '../utils/apiConfig';
 
 export default function ChatApp() {
   const [messages, setMessages] = useState([]);
@@ -11,8 +14,20 @@ export default function ChatApp() {
   const [isThinking, setIsThinking] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [uploadedFileName, setUploadedFileName] = useState('');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [currentApiUrl, setCurrentApiUrl] = useState(getApiBaseUrl());
+  const [networkErrorNotice, setNetworkErrorNotice] = useState(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    const handleUrlChange = () => {
+      setCurrentApiUrl(getApiBaseUrl());
+      setNetworkErrorNotice(null);
+    };
+    window.addEventListener('docmind_api_url_changed', handleUrlChange);
+    return () => window.removeEventListener('docmind_api_url_changed', handleUrlChange);
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -56,19 +71,30 @@ export default function ChatApp() {
       alert('Please upload a PDF, DOCX, or TXT file.');
       return;
     }
+
+    const baseUrl = getApiBaseUrl();
+    if (isProductionCloud() && !baseUrl) {
+      setIsSettingsOpen(true);
+      setNetworkErrorNotice('Please connect your Render API URL before uploading files.');
+      return;
+    }
+
     setIsUploading(true);
+    setNetworkErrorNotice(null);
+
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const baseUrl = import.meta.env.VITE_API_URL 
-        ? (import.meta.env.VITE_API_URL.startsWith('http') ? import.meta.env.VITE_API_URL : `https://${import.meta.env.VITE_API_URL}`)
-        : (window.location.port === '5173' ? '' : 'http://localhost:5000');
-      const apiEndpoint = `${baseUrl.replace(/\/+$/, '')}/api/upload`;
+      
+      const apiEndpoint = baseUrl ? `${baseUrl.replace(/\/+$/, '')}/api/upload` : '/api/upload';
+      
       const response = await axios.post(apiEndpoint, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        timeout: 90000, // 90 seconds to handle Render cold-start wake up
       });
+
       setUploadedFile(response.data.fileId);
       setUploadedFileName(file.name);
       setMessages(prev => [
@@ -82,8 +108,16 @@ export default function ChatApp() {
       ]);
     } catch (error) {
       console.error('Upload error:', error);
-      const errMsg = error.response?.data?.error || error.response?.data?.detail || error.message || 'Failed to upload file.';
-      alert(`Upload failed: ${errMsg}`);
+      const isNetworkErr = error.message?.toLowerCase().includes('network error') || !error.response;
+      
+      if (isNetworkErr) {
+        setNetworkErrorNotice(
+          `Network connection failed. If your Render backend is sleeping, it may take ~50s to wake up on the free tier. Please verify your API URL in Settings.`
+        );
+      } else {
+        const errMsg = error.response?.data?.error || error.response?.data?.detail || error.message || 'Failed to upload file.';
+        alert(`Upload failed: ${errMsg}`);
+      }
     } finally {
       setIsUploading(false);
     }
@@ -105,14 +139,16 @@ export default function ChatApp() {
 
     setIsThinking(true);
     try {
-      const baseUrl = import.meta.env.VITE_API_URL 
-        ? (import.meta.env.VITE_API_URL.startsWith('http') ? import.meta.env.VITE_API_URL : `https://${import.meta.env.VITE_API_URL}`)
-        : (window.location.port === '5173' ? '' : 'http://localhost:5000');
-      const apiEndpoint = `${baseUrl.replace(/\/+$/, '')}/api/ask`;
+      const baseUrl = getApiBaseUrl();
+      const apiEndpoint = baseUrl ? `${baseUrl.replace(/\/+$/, '')}/api/ask` : '/api/ask';
+
       const response = await axios.post(apiEndpoint, {
         question: currentInput,
         fileId: uploadedFile,
+      }, {
+        timeout: 60000,
       });
+
       const botMessage = {
         id: Date.now() + 1,
         text: response.data.answer,
@@ -122,7 +158,11 @@ export default function ChatApp() {
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
       console.error('Ask error:', error);
-      const errMsg = error.response?.data?.error || error.response?.data?.detail || error.message || 'Sorry, I encountered an error. Please try again.';
+      const isNetworkErr = error.message?.toLowerCase().includes('network error') || !error.response;
+      const errMsg = isNetworkErr
+        ? 'Cannot reach AI Backend service. If your Render service is waking up, please wait a moment and try again.'
+        : (error.response?.data?.error || error.response?.data?.detail || error.message || 'Sorry, I encountered an error. Please try again.');
+
       setMessages(prev => [
         ...prev,
         {
@@ -137,6 +177,8 @@ export default function ChatApp() {
     }
   };
 
+  const isConnected = !!currentApiUrl || !isProductionCloud();
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="bg-background/50 backdrop-blur-sm border-b border-border/20 px-6 py-4">
@@ -145,24 +187,84 @@ export default function ChatApp() {
             <FiMessageSquare className="h-6 w-6 text-accent-teal" />
             <h1 className="text-xl font-bold text-text-primary">Document Chat</h1>
           </div>
-          {uploadedFile && (
-            <div className="flex items-center space-x-3 text-text-secondary">
-              <FaRegFileAlt className="h-5 w-5 text-accent-teal" />
-              <span className="font-medium text-text-primary">{uploadedFileName || 'Document'}</span>
-              <button
-                onClick={() => {
-                  setUploadedFile(null);
-                  setUploadedFileName('');
-                  setMessages([]);
-                }}
-                className="text-xs px-2.5 py-1 rounded bg-border/40 hover:bg-border/70 text-text-secondary hover:text-accent-teal transition-all"
-              >
-                Change Document
-              </button>
-            </div>
-          )}
+          
+          <div className="flex items-center space-x-3">
+            {uploadedFile && (
+              <div className="hidden sm:flex items-center space-x-2 text-text-secondary">
+                <FaRegFileAlt className="h-4 w-4 text-accent-teal" />
+                <span className="font-medium text-text-primary text-sm max-w-[150px] truncate">{uploadedFileName}</span>
+                <button
+                  onClick={() => {
+                    setUploadedFile(null);
+                    setUploadedFileName('');
+                    setMessages([]);
+                  }}
+                  className="text-xs px-2 py-0.5 rounded bg-border/40 hover:bg-border/70 text-text-secondary hover:text-accent-teal transition-all"
+                >
+                  Change
+                </button>
+              </div>
+            )}
+
+            {/* API Connection pill */}
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                isConnected
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
+                  : 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20 animate-pulse'
+              }`}
+              title="Configure API backend connection"
+            >
+              <Server className="w-3.5 h-3.5" />
+              <span>{isConnected ? 'API Connected' : 'Connect API'}</span>
+              <Settings className="w-3 h-3 ml-0.5 opacity-70" />
+            </button>
+          </div>
         </div>
       </header>
+
+      {/* Cloud connection banner if not set on production */}
+      {isProductionCloud() && !getStoredApiUrl() && !import.meta.env.VITE_API_URL && (
+        <div className="bg-accent-teal/10 border-b border-accent-teal/20 px-6 py-2.5">
+          <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
+            <div className="flex items-center space-x-2 text-text-primary">
+              <span className="text-base">⚡</span>
+              <span>
+                To start chatting, connect your live <strong>docmind-api</strong> URL from your Render dashboard.
+              </span>
+            </div>
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="px-3 py-1 bg-accent-teal text-background font-semibold rounded-lg hover:opacity-90 transition-opacity whitespace-nowrap"
+            >
+              Configure Backend
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Network error banner */}
+      {networkErrorNotice && (
+        <motion.div
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-rose-500/10 border-b border-rose-500/20 px-6 py-3"
+        >
+          <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-rose-300">
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+              <span>{networkErrorNotice}</span>
+            </div>
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="px-3 py-1 bg-rose-500 text-white font-medium rounded-lg hover:bg-rose-600 transition-colors whitespace-nowrap"
+            >
+              Check Settings
+            </button>
+          </div>
+        </motion.div>
+      )}
 
       <main className="flex-1 overflow-y-auto px-6 py-8">
         <div className="max-w-4xl mx-auto space-y-6">
@@ -181,6 +283,9 @@ export default function ChatApp() {
                   <FiRotateCcw className="h-10 w-10 mb-4 text-accent-teal animate-spin" />
                   <p className="text-lg font-semibold text-text-primary">Processing Document...</p>
                   <p className="text-sm text-text-secondary mt-1">Extracting text and generating vector embeddings</p>
+                  <p className="text-xs text-text-secondary/70 mt-3 max-w-sm">
+                    First-time cloud requests may take ~30–50s while the free service instance warms up.
+                  </p>
                 </div>
               ) : (
                 <>
@@ -231,7 +336,7 @@ export default function ChatApp() {
       {/* Input area */}
       {!uploadedFile && (
         <div className="px-6 py-4 bg-background/50 backdrop-blur-sm border-t border-border/20">
-          <p className="text-text-center text-text-secondary">
+          <p className="text-center text-text-secondary text-sm">
             Please upload a document to start chatting.
           </p>
         </div>
@@ -257,6 +362,12 @@ export default function ChatApp() {
           </div>
         </form>
       )}
+
+      {/* Settings Modal */}
+      <ApiSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </div>
   );
 }
@@ -278,34 +389,27 @@ function MessageCard({ message }) {
         </div>
       )}
       <div
-        className={`message-card glass-card p-4 max-w-2xl ${isUser
+        className={`message-card glass-card p-4 max-w-2xl ${
+          isUser
             ? 'bg-border/20 ml-4'
-            : isSystem || isError
+            : isSystem
               ? 'bg-border/10 mx-4'
-              : 'bg-accent-teal/10'
-          }`}
+              : isError
+                ? 'bg-rose-500/10 border-rose-500/30 mx-4'
+                : 'bg-accent-teal/10'
+        }`}
       >
         <p className="text-text-primary">{message.text}</p>
-        {!isUser && !isSystem && !isError && message.sources && (
+        {!isUser && !isSystem && !isError && message.sources && message.sources.length > 0 && (
           <div className="mt-2 text-text-secondary/80 text-xs">
             Sources: {message.sources.map((s, i) => (
-              <span key={i} className="mx-1">
+              <span key={i} className="mx-1 px-1.5 py-0.5 rounded bg-background/50 border border-border/30">
                 {s.page || s.source}
               </span>
             ))}
           </div>
         )}
       </div>
-      {isSystem && (
-        <div className="ml-4 text-text-secondary text-xs italic">
-          {message.text}
-        </div>
-      )}
-      {isError && (
-        <div className="ml-4 text-text-error text-xs">
-          {message.text}
-        </div>
-      )}
     </motion.div>
   );
 }

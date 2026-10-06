@@ -13,6 +13,20 @@
 
 ---
 
+## 📸 Interface Preview
+
+<div align="center">
+  <img src="./docs/screenshots/hero-preview.png" alt="DocMind AI Interactive Document Chat" width="100%" />
+</div>
+
+<br/>
+
+| Document Chat & Citations | Ingestion & Upload Zone |
+| :---: | :---: |
+| <img src="./docs/screenshots/hero-preview.png" width="450" /> | <img src="./docs/screenshots/chat-upload.png" width="450" /> |
+
+---
+
 ## 🌟 Key Features
 
 - 📑 **Multi-Format Document Ingestion**: Upload `.pdf`, `.docx`, and `.txt` files with automatic text extraction.

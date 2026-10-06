@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { Moon, Sun } from 'lucide-react';
+import { Moon, Sun, Settings } from 'lucide-react';
+import ApiSettingsModal from './ApiSettingsModal';
 
 export default function Navbar() {
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
     if (theme === 'light') {
@@ -44,7 +46,15 @@ export default function Navbar() {
             App
           </NavLink>
         </div>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2">
+          <button 
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-2 rounded-lg hover:bg-border/30 text-text-secondary hover:text-text-primary transition-all duration-200"
+            aria-label="API Settings"
+            title="Backend API Settings"
+          >
+            <Settings className="h-5 w-5 text-text-secondary hover:text-accent-teal transition-colors" />
+          </button>
           <button 
             onClick={toggleTheme}
             className="p-2 rounded-lg hover:bg-border/30 text-text-secondary hover:text-text-primary transition-all duration-200"
@@ -58,6 +68,7 @@ export default function Navbar() {
           </button>
         </div>
       </div>
+      <ApiSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </nav>
   );
 }
