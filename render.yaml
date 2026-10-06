@@ -23,14 +23,11 @@ services:
     runtime: static
     rootDir: docmind-ai/frontend
     buildCommand: npm install && npm run build
-    staticPublishPath: docmind-ai/frontend/dist
+    staticPublishPath: dist
     routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://docmind-api.onrender.com/api/*
       - type: rewrite
         source: /*
         destination: /index.html
-    envVars:
-      - key: VITE_API_URL
-        fromService:
-          type: web
-          name: docmind-api
-          property: host
