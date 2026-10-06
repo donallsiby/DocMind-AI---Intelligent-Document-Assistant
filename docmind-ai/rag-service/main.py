@@ -21,7 +21,9 @@ app.add_middleware(
 
 # Include routers
 app.include_router(upload.router, prefix="/upload", tags=["upload"])
+app.include_router(upload.router, prefix="/api/upload", tags=["upload"])
 app.include_router(ask.router, prefix="/ask", tags=["ask"])
+app.include_router(ask.router, prefix="/api/ask", tags=["ask"])
 
 @app.get("/")
 async def root():

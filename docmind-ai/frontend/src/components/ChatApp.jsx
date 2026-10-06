@@ -60,7 +60,10 @@ export default function ChatApp() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const apiEndpoint = window.location.port === '5173' ? '/api/upload' : 'http://localhost:5000/api/upload';
+      const baseUrl = import.meta.env.VITE_API_URL 
+        ? (import.meta.env.VITE_API_URL.startsWith('http') ? import.meta.env.VITE_API_URL : `https://${import.meta.env.VITE_API_URL}`)
+        : (window.location.port === '5173' ? '' : 'http://localhost:5000');
+      const apiEndpoint = `${baseUrl.replace(/\/+$/, '')}/api/upload`;
       const response = await axios.post(apiEndpoint, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -102,7 +105,10 @@ export default function ChatApp() {
 
     setIsThinking(true);
     try {
-      const apiEndpoint = window.location.port === '5173' ? '/api/ask' : 'http://localhost:5000/api/ask';
+      const baseUrl = import.meta.env.VITE_API_URL 
+        ? (import.meta.env.VITE_API_URL.startsWith('http') ? import.meta.env.VITE_API_URL : `https://${import.meta.env.VITE_API_URL}`)
+        : (window.location.port === '5173' ? '' : 'http://localhost:5000');
+      const apiEndpoint = `${baseUrl.replace(/\/+$/, '')}/api/ask`;
       const response = await axios.post(apiEndpoint, {
         question: currentInput,
         fileId: uploadedFile,
