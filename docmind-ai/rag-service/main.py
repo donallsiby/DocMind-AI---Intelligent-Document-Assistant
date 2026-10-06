@@ -25,6 +25,13 @@ app.include_router(upload.router, prefix="/api/upload", tags=["upload"])
 app.include_router(ask.router, prefix="/ask", tags=["ask"])
 app.include_router(ask.router, prefix="/api/ask", tags=["ask"])
 
+@app.on_event("startup")
+async def startup_event():
+    import threading
+    from app.utils.embeddings import get_embeddings
+    # Warm up embedding model in background so server responds to health checks immediately
+    threading.Thread(target=get_embeddings, daemon=True).start()
+
 @app.get("/")
 async def root():
     return {"message": "DocMind AI RAG Service is running"}

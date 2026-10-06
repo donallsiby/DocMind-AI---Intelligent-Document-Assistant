@@ -15,14 +15,11 @@ def get_rag_chain(vector_store_path: str):
     """
     Create a RetrievalQA chain for the given vector store
     """
-    # Load vector store
+    # Load vector store with cached singleton embeddings
     from langchain_community.vectorstores import Chroma
-    from langchain_community.embeddings import HuggingFaceEmbeddings
+    from app.utils.embeddings import get_embeddings
 
-    embeddings = HuggingFaceEmbeddings(
-        model_name=settings.EMBEDDING_MODEL,
-        model_kwargs={'device': 'cpu'}
-    )
+    embeddings = get_embeddings()
 
     vector_store = Chroma(
         persist_directory=vector_store_path,

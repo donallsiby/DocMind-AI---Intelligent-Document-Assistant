@@ -49,11 +49,9 @@ def process_document(file_path: Path, file_id: str, filename: str):
         texts = text_splitter.split_documents(documents)
         logger.info(f"Split into {len(texts)} chunks")
 
-        # Create embeddings
-        embeddings = HuggingFaceEmbeddings(
-            model_name=settings.EMBEDDING_MODEL,
-            model_kwargs={'device': 'cpu'}
-        )
+        # Use cached singleton embeddings
+        from app.utils.embeddings import get_embeddings
+        embeddings = get_embeddings()
 
         # Create vector store
         vector_store = Chroma.from_documents(
