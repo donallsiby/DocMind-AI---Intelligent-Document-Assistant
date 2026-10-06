@@ -1,5 +1,5 @@
 services:
-  # 1. AI RAG Service & API (FastAPI) - 100% Free Web Service (No payment needed)
+  # 1. AI RAG Service & API (FastAPI) - Free Web Service
   - type: web
     name: docmind-api
     runtime: python
@@ -17,13 +17,13 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.9
 
-  # 2. Frontend React App - 100% Free Static Site
-  - type: static
+  # 2. Frontend React App - Free Static Site
+  - type: web
     name: docmind-frontend
     runtime: static
     rootDir: docmind-ai/frontend
     buildCommand: npm install && npm run build
-    staticPublishPath: dist
+    staticPublishPath: docmind-ai/frontend/dist
     routes:
       - type: rewrite
         source: /*
