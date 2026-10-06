@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #050B18;
+  --foreground: #F8FAFC;
+  --card: #0A1428;
+  --border: #1E293B;
+  --accent-teal: #00E5C0;
+  --accent-blue: #2D7FF9;
+  --text-primary: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --card-glass: rgba(10, 20, 40, 0.8);
+  --border-glass: rgba(30, 41, 59, 0.5);
+}
+
+.light {
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --border: #E2E8F0;
+  --accent-teal: #0D9488;
+  --accent-blue: #2563EB;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --card-glass: rgba(255, 255, 255, 0.8);
+  --border-glass: rgba(226, 232, 240, 0.5);
+}
+
+@layer base {
+  body {
+    @apply bg-background text-text-primary transition-colors duration-300;
+  }
+}
+
+@layer components {
+  .glass-card {
+    background-color: var(--card-glass);
+    border: 1px solid var(--border-glass);
+    @apply backdrop-blur-xs rounded-lg;
+  }
+
+  .btn-primary {
+    @apply bg-accent-teal text-background px-6 py-3 rounded-lg font-medium
+           hover:bg-accent-teal/90 focus-visible:outline-none focus-visible:ring-2
+           focus-visible:ring-accent-teal/50 transition-all duration-200;
+  }
+
+  .btn-secondary {
+    @apply bg-transparent text-accent-teal border border-accent-teal/20 px-6 py-3
+           rounded-lg font-medium hover:bg-accent-teal/10 focus-visible:outline-none
+           focus-visible:ring-2 focus-visible:ring-accent-teal/50 transition-all duration-200;
+  }
+
+  .input-field {
+    @apply bg-card/50 border border-border/30 rounded-lg px-4 py-3 text-text-primary
+           focus:outline-none focus:ring-2 focus:ring-accent-teal/50 transition-all duration-200;
+  }
+
+  .nav-link {
+    @apply text-text-secondary hover:text-text-primary hover:border-b-2 border-b-2
+           border-transparent transition-all duration-200;
+  }
+
+  .nav-link-active {
+    @apply text-accent-teal border-b-2 border-accent-teal;
+  }
+}

@@ -1,0 +1,45 @@
+services:
+  # 1. AI RAG Engine (FastAPI)
+  - type: web
+    name: docmind-rag-service
+    runtime: python
+    rootDir: docmind-ai/rag-service
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: LLM_PROVIDER
+        value: nvidia
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: NVIDIA_MODEL
+        value: openai/gpt-oss-20b
+      - key: PYTHON_VERSION
+        value: 3.11.9
+
+  # 2. Backend Gateway (Node.js/Express)
+  - type: web
+    name: docmind-backend
+    runtime: node
+    rootDir: docmind-ai/backend
+    buildCommand: npm install
+    startCommand: node src/server.js
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: RAG_SERVICE_URL
+        fromService:
+          type: web
+          name: docmind-rag-service
+          property: host
+
+  # 3. Frontend App (React/Vite Static Site)
+  - type: web
+    name: docmind-frontend
+    runtime: static
+    rootDir: docmind-ai/frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
