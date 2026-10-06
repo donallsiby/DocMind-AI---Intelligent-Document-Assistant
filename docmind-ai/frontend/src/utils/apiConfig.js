@@ -59,20 +59,31 @@ export const testApiHealth = async (candidateUrl) => {
   if (!target) {
     return { ok: false, error: 'No API URL provided' };
   }
-  if (!target.startsWith('http://') && !target.startsWith('https://')) {
+
+  // Ensure HTTPS on cloud to prevent Mixed Content blocking
+  if (target.startsWith('http://') && (isProductionCloud() || target.includes('.onrender.com'))) {
+    target = target.replace(/^http:\/\//i, 'https://');
+  } else if (!target.startsWith('http://') && !target.startsWith('https://')) {
     target = `https://${target}`;
   }
 
   try {
-    const res = await axios.get(`${target}/health`, { timeout: 8000 });
+    const res = await axios.get(`${target}/health`, { timeout: 60000 });
     if (res.status === 200 && (res.data?.status === 'healthy' || res.data?.message)) {
       return { ok: true, url: target, data: res.data };
     }
     return { ok: false, error: `Unexpected response status: ${res.status}` };
   } catch (err) {
+    let errorMsg = err.response?.data?.detail || err.message || 'Failed to connect to backend';
+    if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+      errorMsg = 'Connection timed out (backend instance may still be spinning up, please try again)';
+    } else if (err.message?.includes('Network Error')) {
+      errorMsg = 'Network Error (check if service is Live on Render and URL is correct)';
+    }
     return {
       ok: false,
-      error: err.response?.data?.detail || err.message || 'Failed to connect to backend',
+      error: errorMsg,
+      url: target,
     };
   }
 };

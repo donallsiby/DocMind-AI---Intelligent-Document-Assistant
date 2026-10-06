@@ -17,25 +17,42 @@ export default function ApiSettingsModal({ isOpen, onClose }) {
     }
   }, [isOpen]);
 
+  const cleanUrl = (raw) => {
+    let u = raw.trim().replace(/\/+$/, '');
+    if (u && !u.startsWith('http://') && !u.startsWith('https://')) {
+      u = `https://${u}`;
+    }
+    if (u.startsWith('http://') && u.includes('.onrender.com')) {
+      u = u.replace(/^http:\/\//i, 'https://');
+    }
+    return u;
+  };
+
   const handleTest = async () => {
     setTesting(true);
     setTestResult(null);
     setSaveSuccess(false);
 
-    const result = await testApiHealth(urlInput);
+    const target = cleanUrl(urlInput);
+    if (target && target !== urlInput) {
+      setUrlInput(target);
+    }
+
+    const result = await testApiHealth(target);
     setTesting(false);
     if (result.ok) {
-      setTestResult({ ok: true, message: 'Backend is online and healthy!' });
+      setTestResult({ ok: true, message: 'Backend is online and healthy! Ready to process documents.' });
     } else {
       setTestResult({
         ok: false,
-        message: `Connection failed: ${result.error}. (Note: Render free services may take ~50s to wake up from sleep)`
+        message: `${result.error}. (Tip: If you just deployed on Render, check that docmind-api says "Live" on your dashboard and wait ~30-50s for wake-up)`
       });
     }
   };
 
   const handleSave = () => {
-    setStoredApiUrl(urlInput.trim());
+    const target = cleanUrl(urlInput);
+    setStoredApiUrl(target);
     setSaveSuccess(true);
     setTimeout(() => {
       onClose();
