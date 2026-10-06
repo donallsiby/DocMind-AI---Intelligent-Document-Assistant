@@ -5,7 +5,7 @@ services:
     runtime: python
     plan: free
     rootDir: docmind-ai/rag-service
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: LLM_PROVIDER
